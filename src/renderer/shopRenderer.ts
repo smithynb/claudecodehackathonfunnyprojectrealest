@@ -50,7 +50,7 @@ export function renderShop(
   fb.setCell(x0 + SHOP_WIDTH - 1, y0 + shopH - 1, "+", SHOP_BORDER, SHOP_BG)
 
   // Title
-  const title = " SEED SHOP "
+  const title = " SEED MENU "
   const titleX = x0 + Math.floor((SHOP_WIDTH - title.length) / 2)
   fb.drawText(title, titleX, y0, SHOP_TITLE, SHOP_BG)
 
@@ -95,5 +95,5 @@ export function renderShop(
 
   // Help text
   const helpY = y0 + shopH - 2
-  fb.drawText("[j/k] Navigate  [Enter] Buy  [Esc/q] Close", x0 + 2, helpY, HELP_COLOR, SHOP_BG)
+  fb.drawText("[j/k] Move  [Enter] Select  [Esc/q] Close", x0 + 2, helpY, HELP_COLOR, SHOP_BG)
 }

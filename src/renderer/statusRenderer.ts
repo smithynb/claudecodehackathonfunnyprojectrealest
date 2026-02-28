@@ -58,7 +58,7 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
   if (state.inputMode === "shop" || state.shopOpen) {
     return [
       { key: "j/k", label: "Browse" },
-      { key: "Enter", label: "Buy" },
+      { key: "Enter", label: "Select" },
       { key: "Esc/Q", label: "Close" },
     ]
   }
@@ -68,7 +68,7 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
       { key: "hjkl", label: "Resize" },
       { key: "w/b", label: "Word" },
       { key: "0/$/gg/G", label: "Row" },
-      { key: "1-6", label: "Seeds" },
+      { key: "S", label: "Seeds" },
       { key: "Space", label: "Smart" },
       { key: "Esc/v", label: "Cancel" },
     ]
@@ -83,11 +83,9 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
   ]
 
   const cell = state.grid[state.cursorRow]?.[state.cursorCol]
-  if (!cell?.plant) {
-    actions.push({ key: "1-6", label: "Seeds" })
-  } else if (cell.plant.isDead) {
+  if (cell?.plant?.isDead) {
     actions.push({ key: "X", label: "Clear" })
-  } else {
+  } else if (cell?.plant) {
     const def = getPlantDef(cell.plant.type)
     const isReady = cell.plant.stageIndex >= def.stages.length - 1
     if (isReady) {
@@ -102,7 +100,7 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
   }
 
   actions.push({ key: "T", label: `Auto:${state.autoAdvance ? "ON" : "OFF"}` })
-  actions.push({ key: "S", label: "Shop" })
+  actions.push({ key: "S", label: "Seeds" })
   actions.push({ key: ":q", label: "Quit" })
 
   return actions
@@ -130,7 +128,7 @@ function getModeDisplay(state: GameState): { label: string; color: RGBA } {
   }
 
   if (state.inputMode === "shop" || state.shopOpen) {
-    return { label: "-- SHOP --", color: MODE_COLOR }
+    return { label: "-- SEED MENU --", color: MODE_COLOR }
   }
 
   if (state.inputMode === "visual") {

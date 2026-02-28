@@ -29,7 +29,7 @@ export function createGameState(): GameState {
     shopOpen: false,
     shopCursor: 0,
     paused: false,
-    statusMessage: "Welcome to your garden! Press [S] to open shop, buy seeds, and start planting!",
+    statusMessage: "Welcome to your garden! Press [S] to open the seed menu and start planting!",
     statusMessageTimer: 0,
     totalHarvested: 0,
     totalEarned: 0,

@@ -1,4 +1,4 @@
-import type { GameState, PlantType } from "./types.ts"
+import type { GameState } from "./types.ts"
 import {
   moveCursor,
   doPlant,
@@ -8,17 +8,7 @@ import {
   doBulkInteract,
   setStatusMessage,
 } from "./game.ts"
-import { getPlantDef } from "./plants.ts"
-import { buyFromShop, getShopItems } from "./shop.ts"
-
-const SEED_KEYS: Record<string, PlantType> = {
-  "1": "carrot",
-  "2": "sunflower",
-  "3": "tomato",
-  "4": "rose",
-  "5": "mushroom",
-  "6": "pumpkin",
-}
+import { getShopItems, selectSeedFromMenu } from "./shop.ts"
 
 export interface KeyEvent {
   name: string
@@ -143,7 +133,7 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
       state.shopCursor = 0
       state.inputMode = "shop"
       state.visualAnchor = null
-      setStatusMessage(state, "Shop opened. Use J/K to browse, Enter to buy.", 5000)
+      setStatusMessage(state, "Seed menu opened. Use J/K to browse, Enter to select.", 5000)
       return
 
     case "t":
@@ -165,14 +155,6 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
       return
   }
 
-  const seedType = SEED_KEYS[key.name]
-  if (seedType) {
-    state.selectedSeed = seedType
-    state.selectedTool = "seed"
-    const def = getPlantDef(seedType)
-    setStatusMessage(state, `Selected ${def.name} seeds (${def.cost}g). Press [Space] to plant.`)
-    return
-  }
 }
 
 function handleVisualInput(state: GameState, key: KeyEvent): void {
@@ -224,14 +206,13 @@ function handleVisualInput(state: GameState, key: KeyEvent): void {
     case "return":
       doBulkInteract(state)
       return
-  }
-
-  const seedType = SEED_KEYS[key.name]
-  if (seedType) {
-    state.selectedSeed = seedType
-    state.selectedTool = "seed"
-    const def = getPlantDef(seedType)
-    setStatusMessage(state, `Selected ${def.name} seeds (${def.cost}g).`)
+    case "s":
+      state.shopOpen = true
+      state.shopCursor = 0
+      state.inputMode = "shop"
+      state.visualAnchor = null
+      setStatusMessage(state, "Seed menu opened. Use J/K to browse, Enter to select.", 5000)
+      return
   }
 }
 
@@ -348,7 +329,7 @@ function handleShopInput(state: GameState, key: KeyEvent): void {
 
     case "return":
     case "space": {
-      const result = buyFromShop(state, state.shopCursor)
+      const result = selectSeedFromMenu(state.shopCursor)
       if (result.seed) {
         state.selectedSeed = result.seed
         state.selectedTool = "seed"
@@ -366,7 +347,7 @@ function handleShopInput(state: GameState, key: KeyEvent): void {
     case "escape":
       state.shopOpen = false
       state.inputMode = "normal"
-      setStatusMessage(state, "Shop closed.", 1500)
+      setStatusMessage(state, "Seed menu closed.", 1500)
       return
   }
 }
