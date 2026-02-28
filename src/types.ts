@@ -1,4 +1,9 @@
-export type InputMode = "normal" | "command" | "shop"
+export type InputMode = "normal" | "visual" | "command" | "shop"
+
+export interface GridPosition {
+  row: number
+  col: number
+}
 
 export type Season = "spring" | "summer" | "fall" | "winter"
 
@@ -66,6 +71,8 @@ export interface GameState {
   /** Player cursor position */
   cursorRow: number
   cursorCol: number
+  /** Visual selection anchor (start point) */
+  visualAnchor: GridPosition | null
   /** Current day number */
   day: number
   /** Current season */

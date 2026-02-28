@@ -1,6 +1,7 @@
 import { RGBA } from "@opentui/core"
 import type { GameState } from "../types.ts"
 import { getPlantDef } from "../plants.ts"
+import { getVisualSelection } from "../game.ts"
 import type { GardenFrameBufferLike } from "./gardenRenderer.ts"
 
 const STATUS_BG = RGBA.fromHex("#16213E")
@@ -9,6 +10,7 @@ const MESSAGE_COLOR = RGBA.fromHex("#FFFFFF")
 const HELP_COLOR = RGBA.fromHex("#666666")
 const KEY_COLOR = RGBA.fromHex("#80DEEA")
 const MODE_COLOR = RGBA.fromHex("#FFD166")
+const VISUAL_MODE_COLOR = RGBA.fromHex("#CC77FF")
 
 export const STATUS_HEIGHT = 3
 
@@ -29,8 +31,8 @@ export function renderStatus(
     fb.setCell(x, offsetY, "-", STATUS_BORDER, STATUS_BG)
   }
 
-  const modeLabel = getModeLabel(state)
-  const modeDrawn = drawClippedText(fb, modeLabel, 1, offsetY + 1, MODE_COLOR, STATUS_BG, width - 2)
+  const mode = getModeDisplay(state)
+  const modeDrawn = drawClippedText(fb, mode.label, 1, offsetY + 1, mode.color, STATUS_BG, width - 2)
 
   if (state.statusMessage) {
     const messageX = Math.min(width - 1, modeDrawn + 3)
@@ -61,10 +63,22 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
     ]
   }
 
+  if (state.inputMode === "visual") {
+    return [
+      { key: "hjkl", label: "Resize" },
+      { key: "w/b", label: "Word" },
+      { key: "0/$", label: "Row" },
+      { key: "1-6", label: "Seeds" },
+      { key: "Space", label: "Smart" },
+      { key: "Esc/v", label: "Cancel" },
+    ]
+  }
+
   const actions: ShortcutItem[] = [
     { key: "hjkl", label: "Move" },
     { key: "w/b", label: "Word" },
     { key: "0/$", label: "Row" },
+    { key: "V", label: "Visual" },
     { key: "Space", label: "Auto" },
   ]
 
@@ -110,16 +124,27 @@ function renderCommandRow(
   drawClippedText(fb, commandText, promptX + 1, y, MESSAGE_COLOR, STATUS_BG, width - promptX - 2)
 }
 
-function getModeLabel(state: GameState): string {
+function getModeDisplay(state: GameState): { label: string; color: RGBA } {
   if (state.inputMode === "command") {
-    return "-- COMMAND --"
+    return { label: "-- COMMAND --", color: MODE_COLOR }
   }
 
   if (state.inputMode === "shop" || state.shopOpen) {
-    return "-- SHOP --"
+    return { label: "-- SHOP --", color: MODE_COLOR }
   }
 
-  return "-- NORMAL --"
+  if (state.inputMode === "visual") {
+    const selection = getVisualSelection(state)
+    if (selection) {
+      return {
+        label: `-- VISUAL ${selection.width}x${selection.height} (${selection.cellCount}) --`,
+        color: VISUAL_MODE_COLOR,
+      }
+    }
+    return { label: "-- VISUAL --", color: VISUAL_MODE_COLOR }
+  }
+
+  return { label: "-- NORMAL --", color: MODE_COLOR }
 }
 
 function renderShortcutRow(

@@ -2,6 +2,7 @@ import { RGBA } from "@opentui/core"
 import type { GameState, GardenCell } from "../types.ts"
 import { getPlantDef } from "../plants.ts"
 import { getSoilColor } from "../garden.ts"
+import { getVisualSelection } from "../game.ts"
 import { EMPTY_CELL_SPRITE, DEAD_PLANT_SPRITE, getSoilChar } from "./sprites.ts"
 
 const MAX_CELL_W = 7
@@ -11,6 +12,8 @@ const MIN_CELL_H = 2
 
 const CURSOR_BG = RGBA.fromHex("#3A3A5C")
 const CURSOR_BORDER = RGBA.fromHex("#7C7CFF")
+const SELECTION_BG = RGBA.fromHex("#47375D")
+const SELECTION_BORDER = RGBA.fromHex("#CC77FF")
 const GRID_BORDER = RGBA.fromHex("#555555")
 const DEAD_COLOR = RGBA.fromHex("#888888")
 const EMPTY_COLOR = RGBA.fromHex("#5D4037")
@@ -83,6 +86,7 @@ export function renderGarden(
 ): void {
   const { gridRows, gridCols } = state
   const { cellWidth, cellHeight, width, height, isDetailed } = layout
+  const selection = getVisualSelection(state)
 
   fb.fillRect(offsetX, offsetY, width, height, BG_COLOR)
 
@@ -94,9 +98,15 @@ export function renderGarden(
       const cellX = offsetX + c * cellWidth
       const cellY = offsetY + r * cellHeight
       const isCursor = r === state.cursorRow && c === state.cursorCol
+      const isSelected =
+        selection !== null &&
+        r >= selection.minRow &&
+        r <= selection.maxRow &&
+        c >= selection.minCol &&
+        c <= selection.maxCol
 
       const soilBg = RGBA.fromHex(getSoilColor(cell.soilState))
-      const cellBg = isCursor ? CURSOR_BG : soilBg
+      const cellBg = isCursor ? CURSOR_BG : isSelected ? SELECTION_BG : soilBg
 
       const interiorX = cellX + 1
       const interiorY = cellY + 1
@@ -105,7 +115,7 @@ export function renderGarden(
 
       fb.fillRect(interiorX, interiorY, interiorWidth, interiorHeight, cellBg)
 
-      const borderColor = isCursor ? CURSOR_BORDER : GRID_BORDER
+      const borderColor = isCursor ? CURSOR_BORDER : isSelected ? SELECTION_BORDER : GRID_BORDER
       for (let x = cellX; x < cellX + cellWidth; x++) {
         fb.setCell(x, cellY, "-", borderColor, BG_COLOR)
       }

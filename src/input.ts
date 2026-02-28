@@ -5,6 +5,7 @@ import {
   doDelete,
   doNextDay,
   doInteract,
+  doBulkInteract,
   setStatusMessage,
 } from "./game.ts"
 import { getPlantDef } from "./plants.ts"
@@ -33,8 +34,14 @@ export function handleKeypress(
   key: KeyEvent,
   onQuit: () => void,
 ): void {
-  if (key.ctrl && key.name === "c") {
-    setStatusMessage(state, "Ctrl+C is disabled. Use :q to exit.", 2500)
+  if (isCtrlC(key)) {
+    if (state.inputMode === "normal" && !state.shopOpen && !state.visualAnchor && state.commandBuffer.length === 0) {
+      onQuit()
+      return
+    }
+
+    returnToNormalMode(state)
+    setStatusMessage(state, "Returned to normal mode.", 1500)
     return
   }
 
@@ -47,6 +54,11 @@ export function handleKeypress(
 
   if (state.inputMode === "command") {
     handleCommandInput(state, key, onQuit)
+    return
+  }
+
+  if (state.inputMode === "visual") {
+    handleVisualInput(state, key)
     return
   }
 
@@ -87,6 +99,11 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
     case "b":
       moveCursorWordBackward(state)
       return
+    case "v":
+      state.inputMode = "visual"
+      state.visualAnchor = { row: state.cursorRow, col: state.cursorCol }
+      setStatusMessage(state, "Visual mode: select a block, then press [Space] for smart action.", 2500)
+      return
   }
 
   if (key.sequence === ":" || key.name === ":") {
@@ -119,6 +136,7 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
       state.shopOpen = true
       state.shopCursor = 0
       state.inputMode = "shop"
+      state.visualAnchor = null
       setStatusMessage(state, "Shop opened. Use J/K to browse, Enter to buy.", 5000)
       return
 
@@ -148,6 +166,62 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
     const def = getPlantDef(seedType)
     setStatusMessage(state, `Selected ${def.name} seeds (${def.cost}g). Press [Space] to plant.`)
     return
+  }
+}
+
+function handleVisualInput(state: GameState, key: KeyEvent): void {
+  if (isJumpToRowStartKey(key)) {
+    moveCursorToCol(state, 0)
+    return
+  }
+
+  if (isJumpToRowEndKey(key)) {
+    moveCursorToCol(state, state.gridCols - 1)
+    return
+  }
+
+  switch (key.name) {
+    case "up":
+    case "k":
+      moveCursor(state, -1, 0)
+      return
+    case "down":
+    case "j":
+      moveCursor(state, 1, 0)
+      return
+    case "left":
+    case "h":
+      moveCursor(state, 0, -1)
+      return
+    case "right":
+    case "l":
+      moveCursor(state, 0, 1)
+      return
+    case "w":
+      moveCursorWordForward(state)
+      return
+    case "b":
+      moveCursorWordBackward(state)
+      return
+    case "escape":
+    case "v":
+      state.inputMode = "normal"
+      state.visualAnchor = null
+      setStatusMessage(state, "Visual selection canceled.", 1500)
+      return
+    case "space":
+    case "enter":
+    case "return":
+      doBulkInteract(state)
+      return
+  }
+
+  const seedType = SEED_KEYS[key.name]
+  if (seedType) {
+    state.selectedSeed = seedType
+    state.selectedTool = "seed"
+    const def = getPlantDef(seedType)
+    setStatusMessage(state, `Selected ${def.name} seeds (${def.cost}g).`)
   }
 }
 
@@ -309,10 +383,22 @@ function isPrintableInput(key: KeyEvent): boolean {
   )
 }
 
+function isCtrlC(key: KeyEvent): boolean {
+  return (key.ctrl && key.name === "c") || key.sequence === "\u0003"
+}
+
+function returnToNormalMode(state: GameState): void {
+  state.shopOpen = false
+  state.inputMode = "normal"
+  state.commandBuffer = ""
+  state.visualAnchor = null
+}
+
 function syncModeFromState(state: GameState): void {
   if (state.shopOpen && state.inputMode !== "shop") {
     state.inputMode = "shop"
     state.commandBuffer = ""
+    state.visualAnchor = null
     return
   }
 
