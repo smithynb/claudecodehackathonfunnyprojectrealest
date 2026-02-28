@@ -22,6 +22,8 @@ export function createGameState(): GameState {
     gold: 50,
     selectedTool: "hand",
     selectedSeed: "carrot",
+    inputMode: "normal",
+    commandBuffer: "",
     shopOpen: false,
     shopCursor: 0,
     paused: false,
@@ -71,6 +73,27 @@ export function doHarvest(state: GameState): void {
   }
 }
 
+export function doDelete(state: GameState): void {
+  const cell = state.grid[state.cursorRow]?.[state.cursorCol]
+  if (!cell || !cell.plant) {
+    setStatusMessage(state, "Nothing to delete here.")
+    return
+  }
+
+  const def = getPlantDef(cell.plant.type)
+  const isReady = !cell.plant.isDead && cell.plant.stageIndex >= def.stages.length - 1
+  if (cell.plant.isDead || isReady) {
+    state.selectedTool = "harvest"
+    doHarvest(state)
+    return
+  }
+
+  cell.plant = null
+  cell.soilState = "dry"
+  state.selectedTool = "harvest"
+  setStatusMessage(state, `Removed ${def.name} before harvest.`)
+}
+
 export function doNextDay(state: GameState): void {
   advanceDay(state)
   state.day++
@@ -84,33 +107,26 @@ export function doInteract(state: GameState): void {
   const cell = state.grid[state.cursorRow]?.[state.cursorCol]
   if (!cell) return
 
-  if (state.selectedTool === "seed") {
+  if (!cell.plant) {
+    state.selectedTool = "seed"
     doPlant(state, state.selectedSeed)
-  } else if (state.selectedTool === "water") {
-    doWater(state)
-  } else if (state.selectedTool === "harvest") {
-    if (cell.plant) {
-      doHarvest(state)
-    } else {
-      setStatusMessage(state, "Nothing to harvest here.")
-    }
+    return
+  }
+
+  if (cell.plant.isDead) {
+    state.selectedTool = "harvest"
+    doHarvest(state)
+    return
+  }
+
+  const def = getPlantDef(cell.plant.type)
+  const isReady = cell.plant.stageIndex >= def.stages.length - 1
+  if (isReady) {
+    state.selectedTool = "harvest"
+    doHarvest(state)
   } else {
-    // hand tool - show info
-    if (cell.plant) {
-      const def = getPlantDef(cell.plant.type)
-      const stage = def.stages[cell.plant.stageIndex]
-      const waterPct = Math.round(cell.plant.waterLevel * 100)
-      if (cell.plant.isDead) {
-        setStatusMessage(state, `Dead ${def.name}. Press [H] to clear.`)
-      } else {
-        setStatusMessage(
-          state,
-          `${def.name} - ${stage?.name ?? "?"} | Water: ${waterPct}% | Soil: ${cell.soilState}`,
-        )
-      }
-    } else {
-      setStatusMessage(state, `Empty plot. Soil: ${cell.soilState}`)
-    }
+    state.selectedTool = "water"
+    doWater(state)
   }
 }
 
@@ -125,7 +141,7 @@ export function tickGame(state: GameState, deltaMs: number): void {
   }
 
   // Auto-advance day
-  if (state.autoAdvance && !state.paused && !state.shopOpen) {
+  if (state.autoAdvance && !state.paused && !state.shopOpen && state.inputMode !== "command") {
     state.dayTimer += deltaMs / 1000
     if (state.dayTimer >= state.dayDuration) {
       doNextDay(state)

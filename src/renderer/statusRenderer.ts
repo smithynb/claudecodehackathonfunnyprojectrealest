@@ -8,6 +8,7 @@ const STATUS_BORDER = RGBA.fromHex("#0F3460")
 const MESSAGE_COLOR = RGBA.fromHex("#FFFFFF")
 const HELP_COLOR = RGBA.fromHex("#666666")
 const KEY_COLOR = RGBA.fromHex("#80DEEA")
+const MODE_COLOR = RGBA.fromHex("#FFD166")
 
 export const STATUS_HEIGHT = 3
 
@@ -28,41 +29,57 @@ export function renderStatus(
     fb.setCell(x, offsetY, "-", STATUS_BORDER, STATUS_BG)
   }
 
+  const modeLabel = getModeLabel(state)
+  const modeDrawn = drawClippedText(fb, modeLabel, 1, offsetY + 1, MODE_COLOR, STATUS_BG, width - 2)
+
   if (state.statusMessage) {
-    drawClippedText(fb, state.statusMessage, 2, offsetY + 1, MESSAGE_COLOR, STATUS_BG, width - 4)
+    const messageX = Math.min(width - 1, modeDrawn + 3)
+    drawClippedText(
+      fb,
+      state.statusMessage,
+      messageX,
+      offsetY + 1,
+      MESSAGE_COLOR,
+      STATUS_BG,
+      width - messageX - 1,
+    )
   }
 
-  renderShortcutRow(fb, getRelevantActions(state), width, offsetY + 2)
+  if (state.inputMode === "command") {
+    renderCommandRow(fb, state, width, offsetY + 2)
+  } else {
+    renderShortcutRow(fb, getRelevantActions(state), width, offsetY + 2)
+  }
 }
 
 function getRelevantActions(state: GameState): ShortcutItem[] {
-  if (state.shopOpen) {
+  if (state.inputMode === "shop" || state.shopOpen) {
     return [
-      { key: "Up/Down", label: "Browse" },
+      { key: "j/k", label: "Browse" },
       { key: "Enter", label: "Buy" },
-      { key: "S/Esc", label: "Close" },
-      { key: "Q", label: "Quit" },
+      { key: "Esc/Q", label: "Close" },
     ]
   }
 
   const actions: ShortcutItem[] = [
-    { key: "Arrows", label: "Move" },
-    { key: "Space", label: "Use" },
+    { key: "hjkl", label: "Move" },
+    { key: "w/b", label: "Word" },
+    { key: "0/$", label: "Row" },
+    { key: "Space", label: "Auto" },
   ]
 
   const cell = state.grid[state.cursorRow]?.[state.cursorCol]
   if (!cell?.plant) {
-    actions.push({ key: "E", label: "Plant" })
     actions.push({ key: "1-6", label: "Seeds" })
   } else if (cell.plant.isDead) {
-    actions.push({ key: "H", label: "Clear" })
+    actions.push({ key: "X", label: "Clear" })
   } else {
     const def = getPlantDef(cell.plant.type)
     const isReady = cell.plant.stageIndex >= def.stages.length - 1
     if (isReady) {
-      actions.push({ key: "H", label: "Harvest" })
+      actions.push({ key: "X", label: "Harvest" })
     } else {
-      actions.push({ key: "W", label: "Water" })
+      actions.push({ key: "X", label: "Delete" })
     }
   }
 
@@ -72,9 +89,37 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
 
   actions.push({ key: "T", label: `Auto:${state.autoAdvance ? "ON" : "OFF"}` })
   actions.push({ key: "S", label: "Shop" })
-  actions.push({ key: "Q", label: "Quit" })
+  actions.push({ key: ":q", label: "Quit" })
 
   return actions
+}
+
+function renderCommandRow(
+  fb: GardenFrameBufferLike,
+  state: GameState,
+  width: number,
+  y: number,
+): void {
+  if (width <= 2) {
+    return
+  }
+
+  const promptX = 1
+  fb.setCell(promptX, y, ":", KEY_COLOR, STATUS_BG)
+  const commandText = `${state.commandBuffer}_`
+  drawClippedText(fb, commandText, promptX + 1, y, MESSAGE_COLOR, STATUS_BG, width - promptX - 2)
+}
+
+function getModeLabel(state: GameState): string {
+  if (state.inputMode === "command") {
+    return "-- COMMAND --"
+  }
+
+  if (state.inputMode === "shop" || state.shopOpen) {
+    return "-- SHOP --"
+  }
+
+  return "-- NORMAL --"
 }
 
 function renderShortcutRow(

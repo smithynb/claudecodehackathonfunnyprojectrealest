@@ -69,7 +69,7 @@ export function waterCell(state: GameState, row: number, col: number): string | 
   if (!cell.plant) return "Nothing to water here."
   if (cell.plant.isDead) return "This plant is dead. Harvest to clear."
 
-  cell.plant.waterLevel = Math.min(1.0, cell.plant.waterLevel + 0.4)
+  cell.plant.waterLevel = 1.0
   cell.soilState = "wet"
   return null
 }

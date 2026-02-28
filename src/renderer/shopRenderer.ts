@@ -95,5 +95,5 @@ export function renderShop(
 
   // Help text
   const helpY = y0 + shopH - 2
-  fb.drawText("[Up/Down] Navigate  [Enter] Buy  [S/Esc] Close", x0 + 2, helpY, HELP_COLOR, SHOP_BG)
+  fb.drawText("[j/k] Navigate  [Enter] Buy  [Esc/q] Close", x0 + 2, helpY, HELP_COLOR, SHOP_BG)
 }

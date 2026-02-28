@@ -1,3 +1,5 @@
+export type InputMode = "normal" | "command" | "shop"
+
 export type Season = "spring" | "summer" | "fall" | "winter"
 
 export type Weather = "sunny" | "rainy" | "cloudy" | "drought"
@@ -76,6 +78,10 @@ export interface GameState {
   selectedTool: Tool
   /** Currently selected seed type (when tool is "seed") */
   selectedSeed: PlantType
+  /** Current input mode */
+  inputMode: InputMode
+  /** Command line buffer for command mode */
+  commandBuffer: string
   /** Whether the shop is open */
   shopOpen: boolean
   /** Shop cursor position */

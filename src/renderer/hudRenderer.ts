@@ -62,7 +62,7 @@ export function renderHud(fb: GardenFrameBufferLike, state: GameState, width: nu
   row2X += drawClippedText(fb, "  ", row2X, offsetY + 2, TOOL_COLOR, HUD_BG, width - row2X - 1)
   row2X += drawClippedText(fb, toolStr, row2X, offsetY + 2, TOOL_COLOR, HUD_BG, width - row2X - 1)
 
-  if (state.autoAdvance && !state.shopOpen) {
+  if (state.autoAdvance && !state.shopOpen && state.inputMode !== "command") {
     const timerWidth = 12
     const progress = Math.min(1.0, state.dayTimer / state.dayDuration)
     const filled = Math.round(progress * timerWidth)
