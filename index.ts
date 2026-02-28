@@ -6,7 +6,7 @@ import {
 } from "@opentui/core"
 import { createGameState, tickGame } from "./src/game.ts"
 import { handleKeypress } from "./src/input.ts"
-import { renderGarden, getGardenPixelSize } from "./src/renderer/gardenRenderer.ts"
+import { renderGarden, getGardenLayout } from "./src/renderer/gardenRenderer.ts"
 import { renderHud, HUD_HEIGHT } from "./src/renderer/hudRenderer.ts"
 import { renderStatus, STATUS_HEIGHT } from "./src/renderer/statusRenderer.ts"
 import { renderShop } from "./src/renderer/shopRenderer.ts"
@@ -20,26 +20,55 @@ async function main() {
 
   const state = createGameState()
 
-  // Calculate dimensions
-  const gardenSize = getGardenPixelSize(state)
-  const totalWidth = Math.max(gardenSize.width + 2, 60)
-  const totalHeight = HUD_HEIGHT + gardenSize.height + STATUS_HEIGHT + 2
-
-  // Create the main FrameBuffer
   const canvas = new FrameBufferRenderable(renderer, {
     id: "game-canvas",
-    width: totalWidth,
-    height: totalHeight,
+    width: Math.max(1, renderer.width),
+    height: Math.max(1, renderer.height),
   })
 
   renderer.root.add(canvas)
 
   const BG = RGBA.fromHex("#1A1A2E")
+  const WARNING = RGBA.fromHex("#EF5350")
+  const HINT = RGBA.fromHex("#90A4AE")
 
-  // Track time for game ticks
   let lastTime = Date.now()
+  let destroyed = false
+
+  const minGardenWidth = state.gridCols * 3 + 1
+  const minGardenHeight = state.gridRows * 2 + 1
+
+  const quit = () => {
+    if (destroyed) {
+      return
+    }
+    destroyed = true
+    clearInterval(tickInterval)
+    process.stdout.off("resize", handleResize)
+    renderer.destroy()
+  }
+
+  const handleResize = () => {
+    renderFrame()
+  }
+
+  process.stdout.on("resize", handleResize)
 
   function renderFrame() {
+    if (destroyed) {
+      return
+    }
+
+    const width = Math.max(1, renderer.width)
+    const height = Math.max(1, renderer.height)
+
+    if (canvas.width !== width) {
+      canvas.width = width
+    }
+    if (canvas.height !== height) {
+      canvas.height = height
+    }
+
     const fb = canvas.frameBuffer
     if (!fb) return
 
@@ -50,52 +79,57 @@ async function main() {
     // Tick game logic
     tickGame(state, delta)
 
-    // Clear entire canvas
-    fb.fillRect(0, 0, totalWidth, totalHeight, BG)
+    fb.fillRect(0, 0, width, height, BG)
 
-    // Render HUD at top
-    renderHud(fb, state, totalWidth, 0)
+    renderHud(fb, state, width, 0)
 
-    // Render garden grid
-    const gardenOffsetX = 1
-    const gardenOffsetY = HUD_HEIGHT
-    renderGarden(fb, state, gardenOffsetX, gardenOffsetY)
+    const statusOffsetY = Math.max(HUD_HEIGHT, height - STATUS_HEIGHT)
+    renderStatus(fb, state, width, statusOffsetY)
 
-    // Render status bar at bottom
-    const statusOffsetY = HUD_HEIGHT + gardenSize.height + 1
-    renderStatus(fb, state, totalWidth, statusOffsetY)
+    const gardenAreaTop = HUD_HEIGHT
+    const gardenAreaHeight = Math.max(0, statusOffsetY - gardenAreaTop)
+    const gardenLayout = getGardenLayout(state, width - 2, gardenAreaHeight)
 
-    // Render shop overlay if open
+    if (gardenLayout) {
+      const gardenOffsetX = Math.max(0, Math.floor((width - gardenLayout.width) / 2))
+      const gardenOffsetY = gardenAreaTop + Math.max(0, Math.floor((gardenAreaHeight - gardenLayout.height) / 2))
+      renderGarden(fb, state, gardenLayout, gardenOffsetX, gardenOffsetY)
+    } else {
+      const warning = "Terminal too small to render the garden grid."
+      const hint = `Need at least ${minGardenWidth}x${HUD_HEIGHT + STATUS_HEIGHT + minGardenHeight}.`
+      if (gardenAreaTop + 1 < statusOffsetY) {
+        fb.drawText(warning.substring(0, Math.max(0, width - 2)), 1, gardenAreaTop + 1, WARNING, BG)
+      }
+      if (gardenAreaTop + 2 < statusOffsetY) {
+        fb.drawText(hint.substring(0, Math.max(0, width - 2)), 1, gardenAreaTop + 2, HINT, BG)
+      }
+    }
+
     if (state.shopOpen) {
-      const centerX = Math.floor(totalWidth / 2)
-      const centerY = Math.floor(totalHeight / 2)
+      const centerX = Math.floor(width / 2)
+      const centerY = Math.floor(height / 2)
       renderShop(fb, state, centerX, centerY)
     }
   }
 
-  // Keyboard input
   renderer.keyInput.on("keypress", (key: KeyEvent) => {
-    handleKeypress(state, key as any, () => {
-      renderer.destroy()
-      process.exit(0)
-    })
-    renderFrame()
+    handleKeypress(state, key as any, quit)
+    if (!destroyed) {
+      renderFrame()
+    }
   })
 
-  // Initial render
   renderFrame()
 
-  // Start the renderer loop
   renderer.requestLive()
   renderer.start()
 
-  // Game tick interval for auto-advance and timers
-  setInterval(() => {
+  const tickInterval = setInterval(() => {
     renderFrame()
   }, 500)
 }
 
 main().catch((err) => {
   console.error("Fatal error:", err)
-  process.exit(1)
+  process.exitCode = 1
 })

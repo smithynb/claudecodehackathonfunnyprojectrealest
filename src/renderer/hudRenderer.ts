@@ -17,75 +17,94 @@ const TOOL_COLOR = RGBA.fromHex("#80DEEA")
 export const HUD_HEIGHT = 4
 
 export function renderHud(fb: GardenFrameBufferLike, state: GameState, width: number, offsetY: number = 0): void {
-  // Background
   fb.fillRect(0, offsetY, width, HUD_HEIGHT, HUD_BG)
 
-  // Border bottom
   for (let x = 0; x < width; x++) {
     fb.setCell(x, offsetY + HUD_HEIGHT - 1, "-", HUD_BORDER, HUD_BG)
   }
 
-  // Title
-  const title = " GARDEN SIMULATOR "
-  fb.drawText(title, 1, offsetY, TITLE_COLOR, HUD_BG)
+  drawClippedText(fb, " GARDN ", 1, offsetY, TITLE_COLOR, HUD_BG, width - 2)
 
-  // Day info
   const year = getYear(state.day)
   const dayInSeason = getDayInSeason(state.day)
   const seasonLabel = getSeasonLabel(state.season)
   const seasonColor = RGBA.fromHex(getSeasonColor(state.season))
 
-  const dayStr = `Day ${state.day}`
-  const yearStr = `Y${year}`
-  fb.drawText(dayStr, 1, offsetY + 1, VALUE_COLOR, HUD_BG)
-  fb.drawText(yearStr, dayStr.length + 2, offsetY + 1, LABEL_COLOR, HUD_BG)
+  let row1X = 1
+  row1X += drawClippedText(fb, `Day ${state.day}`, row1X, offsetY + 1, VALUE_COLOR, HUD_BG, width - row1X - 1)
+  row1X += drawClippedText(fb, ` Y${year}`, row1X, offsetY + 1, LABEL_COLOR, HUD_BG, width - row1X - 1)
 
-  // Season
-  const seasonStart = dayStr.length + yearStr.length + 4
-  fb.drawText("Season:", seasonStart, offsetY + 1, LABEL_COLOR, HUD_BG)
-  fb.drawText(`${seasonLabel} (${dayInSeason}/7)`, seasonStart + 8, offsetY + 1, seasonColor, HUD_BG)
+  row1X += drawClippedText(fb, "  Season:", row1X, offsetY + 1, LABEL_COLOR, HUD_BG, width - row1X - 1)
+  drawClippedText(
+    fb,
+    ` ${seasonLabel} (${dayInSeason}/7)`,
+    row1X,
+    offsetY + 1,
+    seasonColor,
+    HUD_BG,
+    width - row1X - 1,
+  )
 
-  // Weather (on row 2 instead to avoid overlap with timer bar)
   const weatherLabel = getWeatherLabel(state.weather)
   const weatherColor = RGBA.fromHex(getWeatherColor(state.weather))
 
-  // Gold
-  const goldStr = `Gold: ${state.gold}g`
-  fb.drawText(goldStr, 1, offsetY + 2, GOLD_COLOR, HUD_BG)
+  let row2X = 1
+  row2X += drawClippedText(fb, `Gold: ${state.gold}g`, row2X, offsetY + 2, GOLD_COLOR, HUD_BG, width - row2X - 1)
+  row2X += drawClippedText(fb, "  Weather:", row2X, offsetY + 2, LABEL_COLOR, HUD_BG, width - row2X - 1)
+  row2X += drawClippedText(fb, ` ${weatherLabel}`, row2X, offsetY + 2, weatherColor, HUD_BG, width - row2X - 1)
 
-  // Weather after gold on row 2
-  const weatherStart = goldStr.length + 3
-  fb.drawText("Weather:", weatherStart, offsetY + 2, LABEL_COLOR, HUD_BG)
-  fb.drawText(weatherLabel, weatherStart + 9, offsetY + 2, weatherColor, HUD_BG)
-
-  // Tool
   const toolName = getToolName(state.selectedTool)
   let toolStr = `Tool: ${toolName}`
   if (state.selectedTool === "seed") {
     const seedDef = getPlantDef(state.selectedSeed)
     toolStr += ` (${seedDef.name})`
   }
-  const toolStart = weatherStart + 9 + weatherLabel.length + 2
-  fb.drawText(toolStr, toolStart, offsetY + 2, TOOL_COLOR, HUD_BG)
+  row2X += drawClippedText(fb, "  ", row2X, offsetY + 2, TOOL_COLOR, HUD_BG, width - row2X - 1)
+  row2X += drawClippedText(fb, toolStr, row2X, offsetY + 2, TOOL_COLOR, HUD_BG, width - row2X - 1)
 
-  // Day timer progress bar on right side of row 1 (if auto-advance)
   if (state.autoAdvance && !state.shopOpen) {
     const timerWidth = 12
     const progress = Math.min(1.0, state.dayTimer / state.dayDuration)
     const filled = Math.round(progress * timerWidth)
     const barX = width - timerWidth - 3
-    fb.drawText("[", barX, offsetY + 1, LABEL_COLOR, HUD_BG)
-    for (let i = 0; i < timerWidth; i++) {
-      if (i < filled) {
-        fb.setCell(barX + 1 + i, offsetY + 1, "#", RGBA.fromHex("#66BB6A"), HUD_BG)
-      } else {
-        fb.setCell(barX + 1 + i, offsetY + 1, ".", RGBA.fromHex("#333333"), HUD_BG)
+    if (barX > 1) {
+      fb.drawText("[", barX, offsetY + 1, LABEL_COLOR, HUD_BG)
+      for (let i = 0; i < timerWidth; i++) {
+        if (i < filled) {
+          fb.setCell(barX + 1 + i, offsetY + 1, "#", RGBA.fromHex("#66BB6A"), HUD_BG)
+        } else {
+          fb.setCell(barX + 1 + i, offsetY + 1, ".", RGBA.fromHex("#333333"), HUD_BG)
+        }
       }
+      fb.drawText("]", barX + timerWidth + 1, offsetY + 1, LABEL_COLOR, HUD_BG)
     }
-    fb.drawText("]", barX + timerWidth + 1, offsetY + 1, LABEL_COLOR, HUD_BG)
   }
 
-  // Stats on right side of row 2
   const statsStr = `H:${state.totalHarvested} E:${state.totalEarned}g`
-  fb.drawText(statsStr, width - statsStr.length - 2, offsetY + 2, LABEL_COLOR, HUD_BG)
+  const statsX = width - statsStr.length - 2
+  if (statsX > row2X + 1) {
+    fb.drawText(statsStr, statsX, offsetY + 2, LABEL_COLOR, HUD_BG)
+  }
+}
+
+function drawClippedText(
+  fb: GardenFrameBufferLike,
+  text: string,
+  x: number,
+  y: number,
+  fg: RGBA,
+  bg: RGBA,
+  maxWidth: number,
+): number {
+  if (maxWidth <= 0) {
+    return 0
+  }
+
+  const clipped = text.substring(0, maxWidth)
+  if (clipped.length === 0) {
+    return 0
+  }
+
+  fb.drawText(clipped, x, y, fg, bg)
+  return clipped.length
 }
