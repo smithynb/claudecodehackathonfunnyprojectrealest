@@ -67,7 +67,7 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
     return [
       { key: "hjkl", label: "Resize" },
       { key: "w/b", label: "Word" },
-      { key: "0/$", label: "Row" },
+      { key: "0/$/gg/G", label: "Row" },
       { key: "1-6", label: "Seeds" },
       { key: "Space", label: "Smart" },
       { key: "Esc/v", label: "Cancel" },
@@ -77,7 +77,7 @@ function getRelevantActions(state: GameState): ShortcutItem[] {
   const actions: ShortcutItem[] = [
     { key: "hjkl", label: "Move" },
     { key: "w/b", label: "Word" },
-    { key: "0/$", label: "Row" },
+    { key: "0/$/gg/G", label: "Row" },
     { key: "V", label: "Visual" },
     { key: "Space", label: "Auto" },
   ]

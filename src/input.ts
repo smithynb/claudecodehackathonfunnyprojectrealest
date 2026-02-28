@@ -48,11 +48,13 @@ export function handleKeypress(
   syncModeFromState(state)
 
   if (state.inputMode === "shop") {
+    state.pendingMotionPrefix = ""
     handleShopInput(state, key)
     return
   }
 
   if (state.inputMode === "command") {
+    state.pendingMotionPrefix = ""
     handleCommandInput(state, key, onQuit)
     return
   }
@@ -66,6 +68,10 @@ export function handleKeypress(
 }
 
 function handleNormalInput(state: GameState, key: KeyEvent): void {
+  if (handleVimRowMotions(state, key)) {
+    return
+  }
+
   if (isJumpToRowStartKey(key)) {
     moveCursorToCol(state, 0)
     return
@@ -170,6 +176,10 @@ function handleNormalInput(state: GameState, key: KeyEvent): void {
 }
 
 function handleVisualInput(state: GameState, key: KeyEvent): void {
+  if (handleVimRowMotions(state, key)) {
+    return
+  }
+
   if (isJumpToRowStartKey(key)) {
     moveCursorToCol(state, 0)
     return
@@ -236,6 +246,39 @@ function isJumpToRowEndKey(key: KeyEvent): boolean {
     key.sequence === "$" ||
     (key.shift && key.name === "4")
   )
+}
+
+function handleVimRowMotions(state: GameState, key: KeyEvent): boolean {
+  if (isJumpToBottomRowKey(key)) {
+    state.pendingMotionPrefix = ""
+    moveCursorToRow(state, state.gridRows - 1)
+    return true
+  }
+
+  if (isLowercaseGKey(key)) {
+    if (state.pendingMotionPrefix === "g") {
+      state.pendingMotionPrefix = ""
+      moveCursorToRow(state, 0)
+    } else {
+      state.pendingMotionPrefix = "g"
+    }
+    return true
+  }
+
+  state.pendingMotionPrefix = ""
+  return false
+}
+
+function isJumpToBottomRowKey(key: KeyEvent): boolean {
+  return key.sequence === "G" || (key.shift && key.name === "g")
+}
+
+function isLowercaseGKey(key: KeyEvent): boolean {
+  return key.sequence === "g" || (key.name === "g" && !key.shift)
+}
+
+function moveCursorToRow(state: GameState, row: number): void {
+  state.cursorRow = Math.max(0, Math.min(state.gridRows - 1, row))
 }
 
 function moveCursorToCol(state: GameState, col: number): void {
@@ -391,6 +434,7 @@ function returnToNormalMode(state: GameState): void {
   state.shopOpen = false
   state.inputMode = "normal"
   state.commandBuffer = ""
+  state.pendingMotionPrefix = ""
   state.visualAnchor = null
 }
 
@@ -398,6 +442,7 @@ function syncModeFromState(state: GameState): void {
   if (state.shopOpen && state.inputMode !== "shop") {
     state.inputMode = "shop"
     state.commandBuffer = ""
+    state.pendingMotionPrefix = ""
     state.visualAnchor = null
     return
   }

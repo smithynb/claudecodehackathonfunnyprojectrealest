@@ -89,6 +89,8 @@ export interface GameState {
   inputMode: InputMode
   /** Command line buffer for command mode */
   commandBuffer: string
+  /** Pending multi-key normal/visual mode motion prefix (e.g. first `g` in `gg`) */
+  pendingMotionPrefix: "" | "g"
   /** Whether the shop is open */
   shopOpen: boolean
   /** Shop cursor position */

@@ -25,6 +25,7 @@ export function createGameState(): GameState {
     selectedSeed: "carrot",
     inputMode: "normal",
     commandBuffer: "",
+    pendingMotionPrefix: "",
     shopOpen: false,
     shopCursor: 0,
     paused: false,
