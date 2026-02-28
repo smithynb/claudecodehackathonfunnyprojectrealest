@@ -1,5 +1,6 @@
 import { RGBA } from "@opentui/core"
 import type { GameState } from "../types.ts"
+import { getPlantDef } from "../plants.ts"
 import type { GardenFrameBufferLike } from "./gardenRenderer.ts"
 
 const STATUS_BG = RGBA.fromHex("#16213E")
@@ -8,7 +9,7 @@ const MESSAGE_COLOR = RGBA.fromHex("#FFFFFF")
 const HELP_COLOR = RGBA.fromHex("#666666")
 const KEY_COLOR = RGBA.fromHex("#80DEEA")
 
-export const STATUS_HEIGHT = 4
+export const STATUS_HEIGHT = 3
 
 interface ShortcutItem {
   key: string
@@ -31,24 +32,49 @@ export function renderStatus(
     drawClippedText(fb, state.statusMessage, 2, offsetY + 1, MESSAGE_COLOR, STATUS_BG, width - 4)
   }
 
-  const helpLine1: ShortcutItem[] = [
+  renderShortcutRow(fb, getRelevantActions(state), width, offsetY + 2)
+}
+
+function getRelevantActions(state: GameState): ShortcutItem[] {
+  if (state.shopOpen) {
+    return [
+      { key: "Up/Down", label: "Browse" },
+      { key: "Enter", label: "Buy" },
+      { key: "S/Esc", label: "Close" },
+      { key: "Q", label: "Quit" },
+    ]
+  }
+
+  const actions: ShortcutItem[] = [
     { key: "Arrows", label: "Move" },
-    { key: "Space", label: "Interact" },
-    { key: "W", label: "Water" },
-    { key: "E", label: "Plant" },
-    { key: "H", label: "Harvest" },
+    { key: "Space", label: "Use" },
   ]
 
-  const helpLine2: ShortcutItem[] = [
-    { key: "1-6", label: "Seeds" },
-    { key: "S", label: "Shop" },
-    { key: "N", label: "Next Day" },
-    { key: "T", label: `Auto:${state.autoAdvance ? "ON" : "OFF"}` },
-    { key: "Q", label: "Quit" },
-  ]
+  const cell = state.grid[state.cursorRow]?.[state.cursorCol]
+  if (!cell?.plant) {
+    actions.push({ key: "E", label: "Plant" })
+    actions.push({ key: "1-6", label: "Seeds" })
+  } else if (cell.plant.isDead) {
+    actions.push({ key: "H", label: "Clear" })
+  } else {
+    const def = getPlantDef(cell.plant.type)
+    const isReady = cell.plant.stageIndex >= def.stages.length - 1
+    if (isReady) {
+      actions.push({ key: "H", label: "Harvest" })
+    } else {
+      actions.push({ key: "W", label: "Water" })
+    }
+  }
 
-  renderShortcutRow(fb, helpLine1, width, offsetY + 2)
-  renderShortcutRow(fb, helpLine2, width, offsetY + 3)
+  if (!state.autoAdvance) {
+    actions.push({ key: "N", label: "Next Day" })
+  }
+
+  actions.push({ key: "T", label: `Auto:${state.autoAdvance ? "ON" : "OFF"}` })
+  actions.push({ key: "S", label: "Shop" })
+  actions.push({ key: "Q", label: "Quit" })
+
+  return actions
 }
 
 function renderShortcutRow(
@@ -61,29 +87,63 @@ function renderShortcutRow(
     return
   }
 
-  const innerWidth = width - 2
-  const columnWidth = Math.max(1, Math.floor(innerWidth / items.length))
-
+  let x = 1
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     if (!item) {
       continue
     }
 
-    const x = 1 + i * columnWidth
-    const maxWidth = i === items.length - 1 ? width - x - 1 : columnWidth
+    const maxWidth = width - x - 1
     if (maxWidth <= 0) {
-      continue
+      break
     }
 
-    const keyText = `[${item.key}]`
-    const keyWidth = drawClippedText(fb, keyText, x, y, KEY_COLOR, STATUS_BG, maxWidth)
-    if (keyWidth >= maxWidth) {
-      continue
-    }
+    const keyText = `[${item.key}] ${item.label}${i === items.length - 1 ? "" : "  "}`
+    const totalWidth = keyText.length
+    const drawn = drawShortcutText(fb, keyText, x, y, maxWidth)
+    x += drawn
 
-    drawClippedText(fb, ` ${item.label}`, x + keyWidth, y, HELP_COLOR, STATUS_BG, maxWidth - keyWidth)
+    if (drawn < totalWidth) {
+      break
+    }
   }
+}
+
+function drawShortcutText(
+  fb: GardenFrameBufferLike,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+): number {
+  if (maxWidth <= 0) {
+    return 0
+  }
+
+  let offset = 0
+  let inKey = false
+  for (let i = 0; i < text.length && offset < maxWidth; i++) {
+    const ch = text[i]
+    if (!ch) {
+      continue
+    }
+
+    if (ch === "[") {
+      inKey = true
+    }
+
+    const fg = inKey ? KEY_COLOR : HELP_COLOR
+    fb.setCell(x + offset, y, ch, fg, STATUS_BG)
+
+    if (ch === "]") {
+      inKey = false
+    }
+
+    offset++
+  }
+
+  return offset
 }
 
 function drawClippedText(

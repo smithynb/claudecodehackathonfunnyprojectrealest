@@ -31,7 +31,7 @@ export function createGameState(): GameState {
     totalEarned: 0,
     dayTimer: 0,
     dayDuration: DEFAULT_DAY_DURATION,
-    autoAdvance: true,
+    autoAdvance: false,
   }
 }
 
